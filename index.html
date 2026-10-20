@@ -91,7 +91,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{ou
       </div>
       <div class="panel filters">
         <h2>Filter</h2>
-        <label>Species<select id="fSp"><option value="">All species</option><option>Black</option><option>Grizzly</option><option>Brown</option><option value="Not stated">Species not stated</option></select></label>
+        <label>Species<select id="fSp"><option value="">All species</option><option value="Black">Black bear</option><option value="Grizzly">Grizzly / brown bear</option><option value="Not stated">Species not stated</option></select></label>
         <label>Outcome for people<select id="fOut"><option value="">All outcomes</option><option>Fatal</option><option>Injured</option><option value="No injury stated">No injury stated</option></select></label>
         <label>Country<select id="fCountry"><option value="">US and Canada</option><option>US</option><option>Canada</option><option value="Not stated">Not stated</option></select></label>
         <label>Month<select id="fMonth"><option value="0">All months</option><option value="3">March</option><option value="4">April</option><option value="5">May</option><option value="6">June</option><option value="7">July</option><option value="8">August</option><option value="9">September</option><option value="10">October</option></select></label>
@@ -289,12 +289,19 @@ const DATA = [
 ];
 
 const PREC = {site:"Dot marks the named town or landmark",area:"Dot marks the middle of a park, trail system or area",rough:"Rough placement: only a region or distance is given",none:"Not mapped"};
-const SPECIES = [["Black","--black","Black bear"],["Grizzly","--grizzly","Grizzly"],["Brown","--brown","Brown bear"],["Not stated","--unknown","Species not stated"]];
-const spVar = sp => (SPECIES.find(s=>s[0]===sp)||SPECIES[3])[1];
+const SPECIES = [["Black","--black","Black bear"],["Grizzly","--grizzly","Grizzly / brown bear"],["Not stated","--unknown","Species not stated"]];
+const spVar = sp => (SPECIES.find(s=>s[0]===sp)||SPECIES[2])[1];
 const spName = x => x.spLabel||(x.sp==="Not stated"?"Species not stated":x.sp==="Grizzly"?"Grizzly":x.sp+" bear");
 
 const state = {sp:"",out:"",c:"",month:0,spray:false,gun:false,q:""};
 DATA.forEach((x,i)=>x.id="inc-"+i);
+// Grizzlies and brown bears are the same species (Ursus arctos): group them, but keep the wording each report used.
+DATA.forEach(x=>{
+  if(x.sp==="Grizzly" || x.sp==="Brown"){
+    if(!x.spLabel) x.spLabel = (x.sp==="Grizzly") ? "Grizzly" : "Brown bear";
+    x.sp = "Grizzly";
+  }
+});
 
 function el(tag, cls, text){ const e=document.createElement(tag); if(cls) e.className=cls; if(text!==undefined) e.textContent=text; return e; }
 function safeUrl(u){ try{ const p=new URL(u); return (p.protocol==="https:"||p.protocol==="http:") ? p.href : ""; }catch(e){ return ""; } }
