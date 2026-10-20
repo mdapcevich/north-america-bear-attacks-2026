@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026 bear attacks map, US and Canada</title>
+<style>
+:root{
+  --bg:#eef1ec; --surface:#ffffff; --ink:#1f2a24; --muted:#5d6a62; --line:#d3dad3; --accent:#2f5d4a;
+  --water:#d6e3ea; --land:#f6f4ee; --land-other:#e7e6e0; --border:#9aa59f; --state:#c4ccc7;
+  --black:#4b3fbf; --grizzly:#c27200; --brown:#7a4a22; --unknown:#7d8580; --fatal:#c4161c;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#121815; --surface:#1b231f; --ink:#e6ece7; --muted:#9fb0a6; --line:#2e3a34; --accent:#78c4a0;
+    --water:#0f1a20; --land:#26302b; --land-other:#1c2420; --border:#6f7d75; --state:#3d4a43;
+    --black:#a99dff; --grizzly:#f0a83c; --brown:#d39a68; --unknown:#a3aca7; --fatal:#ff5a5f;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Avenir Next","Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5}
+.wrap{max-width:1240px;margin:0 auto;padding:24px 18px 60px}
+h1{font-family:"Avenir Next Condensed","Arial Narrow",sans-serif;font-stretch:condensed;font-weight:700;font-size:clamp(26px,4vw,40px);line-height:1.05;margin:0 0 6px}
+.sub{color:var(--muted);margin:0 0 16px;max-width:75ch}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}
+@media (max-width:900px){.layout{grid-template-columns:1fr}}
+.mapbox{position:relative;border-radius:10px;border:1px solid var(--line);overflow:hidden;background:var(--water)}
+#map{display:block;width:100%;height:auto;touch-action:none;cursor:grab}
+.zoom{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;gap:4px}
+.zoom button{width:34px;height:34px;font:inherit;font-size:18px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);cursor:pointer}
+.info{position:absolute;right:10px;bottom:10px;max-width:320px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:13.5px;line-height:1.4;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.info.show{display:block}
+.info b{display:block;margin-bottom:2px}
+.info .x{position:absolute;top:4px;right:6px;border:0;background:none;color:var(--muted);font-size:18px;cursor:pointer}
+.side{display:flex;flex-direction:column;gap:12px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px}
+.panel h2{font-size:15px;margin:0 0 8px}
+.key{display:grid;gap:5px;font-size:13px}
+.key svg{vertical-align:-3px;margin-right:6px}
+.filters{display:grid;gap:9px}
+.filters label{font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.filters label.inline{flex-direction:row;align-items:center;gap:7px;color:var(--ink);font-size:13.5px}
+select,input[type=search]{font:inherit;font-size:14px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);width:100%}
+.reset{font:inherit;font-size:13.5px;padding:7px 12px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer}
+.count{font-size:14px;color:var(--muted);margin:0}
+.warn{display:none;background:var(--surface);border:1px solid var(--fatal);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:14px}
+.warn.show{display:block}
+.note{color:var(--muted);font-size:12.5px;margin:6px 0 0}
+h2.listh{font-size:18px;margin:28px 0 8px}
+.list{display:grid;gap:10px}
+.item{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--unknown);border-radius:8px;padding:12px 14px;scroll-margin-top:12px}
+.item.Black{border-left-color:var(--black)}.item.Grizzly{border-left-color:var(--grizzly)}.item.Brown{border-left-color:var(--brown)}
+.item.flash{outline:3px solid var(--accent)}
+.item h3{margin:0;font-size:15.5px}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 8px}
+.pill{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:1px 9px;color:var(--muted)}
+.pill.fatal{border-color:var(--fatal);color:var(--fatal);font-weight:700}
+.pill.inj{color:var(--ink)}
+.item p{margin:0;max-width:85ch}
+.item a{color:var(--accent);word-break:break-all;font-size:13px;display:inline-block;margin-top:6px}
+.flag{font-size:12.5px;color:var(--muted);margin-top:6px;font-style:italic}
+.linkbtn{font:inherit;font-size:13px;color:var(--accent);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline}
+.dot{cursor:pointer}
+.dot:focus-visible{outline:none;stroke:var(--accent)!important;stroke-width:4px!important}
+button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>2026 bear attacks and encounters, US and Canada</h1>
+  <p class="sub">All 73 entries from the source list, each with its report link. Dots are approximate: they mark the named town, park or area, not the exact spot of the attack. Each entry was checked against its link where the link could be opened. Dates, places and outcomes have been corrected to match the links, and entries with a link that couldn't be opened, or details the link doesn't confirm, carry a "Link check" note. Click a dot for details; drag to pan, scroll or use the buttons to zoom.</p>
+
+  <div class="warn" id="warn" role="status"></div>
+
+  <div class="layout">
+    <div>
+      <div class="mapbox">
+        <svg id="map" viewBox="0 0 960 640" role="img" aria-label="Map of the US and Canada with a dot for each incident"></svg>
+        <div class="zoom"><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">&minus;</button><button type="button" id="zreset" aria-label="Reset view" style="font-size:13px">&#8634;</button></div>
+        <div class="info" id="info" role="dialog" aria-live="polite"></div>
+      </div>
+      <p class="note">Map outlines show countries and US state lines; Canadian province lines aren't included in this map data. Where two incidents share a town (for example Steamboat Springs or Glacier National Park), their dots are nudged slightly apart so each one can be clicked.</p>
+    </div>
+    <aside class="side">
+      <div class="panel">
+        <h2>How to read the dots</h2>
+        <div class="key" id="key"></div>
+      </div>
+      <div class="panel filters">
+        <h2>Filter</h2>
+        <label>Species<select id="fSp"><option value="">All species</option><option>Black</option><option>Grizzly</option><option>Brown</option><option value="Not stated">Species not stated</option></select></label>
+        <label>Outcome for people<select id="fOut"><option value="">All outcomes</option><option>Fatal</option><option>Injured</option><option value="No injury stated">No injury stated</option></select></label>
+        <label>Country<select id="fCountry"><option value="">US and Canada</option><option>US</option><option>Canada</option><option value="Not stated">Not stated</option></select></label>
+        <label>Month<select id="fMonth"><option value="0">All months</option><option value="3">March</option><option value="4">April</option><option value="5">May</option><option value="6">June</option><option value="7">July</option><option value="8">August</option><option value="9">September</option><option value="10">October</option></select></label>
+        <label class="inline"><input type="checkbox" id="fSpray">Bear spray mentioned</label>
+        <label class="inline"><input type="checkbox" id="fGun">Firearm mentioned</label>
+        <label>Search text<input type="search" id="fQ" maxlength="80" placeholder="e.g. dog, cub, home, hunter"></label>
+        <p class="count" id="count" aria-live="polite"></p>
+        <button class="reset" id="reset" type="button">Clear all filters</button>
+      </div>
+      <div class="panel">
+        <h2>Not on the map</h2>
+        <p class="note" style="margin:0">July 15, Lake McTavish: the source doesn't say which province the lake is in, so it isn't plotted. It's still in the list below.</p>
+      </div>
+    </aside>
+  </div>
+
+  <h2 class="listh">Every incident</h2>
+  <div class="list" id="list"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/1.6.20/topojson.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/datamaps/0.5.9/datamaps.all.min.js"></script>
+<script>
+"use strict";
+/* txt = the source list's text, unchanged. lc = what checking the entry's link showed (corrections and differences). */
+const NF = "This link couldn't be opened (blocked or empty page), so this entry is unverified.";
+const DATA = [
+{d:"March 14",m:3,place:"Monrovia, California",c:"US",la:34.148,ln:-118.000,pr:"site",sp:"Black",out:"Injured",
+ txt:`On March 16, when a woman was hospitalized after being attacked by a black bear while the woman was walking her dogs in Monrovia, California. Authorities later captured a female bear with two cubs that had been living beneath a house in the area.`,url:"https://www.cbsnews.com/losangeles/news/monrovia-bear-captured-two-cubs-caught-woman-attack/"},
+{d:"April 13",m:4,place:"Near Vanderhoof, BC",c:"Canada",la:54.016,ln:-124.008,pr:"site",sp:"Grizzly",out:"Injured",lc:NF,
+ txt:`A man was injured and hospitalized following a grizzly bear attack on his private farm property near Vanderhoof, BC. on April 13. During the attack, the man scrambled under a barbed wire fence to escape.`,url:"https://vancouver.citynews.ca/2026/04/14/man-injured-in-grizzly-bear-attack-near-vanderhoof/"},
+{d:"April 17",m:4,place:"Joint Base Elmendorf-Richardson, near Anchorage, Alaska",c:"US",la:61.25,ln:-149.80,pr:"area",sp:"Brown",out:"Injured",spray:true,
+ txt:`Two soldiers were seriously injured in April by a brown bear near Anchorage on Joint Base Elmendorf-Richardson. The Army did not provide many details about the encounter but said that the soldiers were equipped with bear spray and that they had deployed it, but they were not able to escape serious injury.`,url:"https://abcnews.com/US/2-soldiers-alaska-injured-bear-attack-training-mission/story?id=132174677"},
+{d:"April 20",m:4,place:"Abrams Falls Trail, Great Smoky Mountains National Park",c:"US",la:35.590,ln:-83.850,pr:"site",sp:"Black",out:"Injured",
+ lc:"The NPS release is dated April 20 and gives no exact incident dates ('last weekend'). It says the Abrams Falls road and trail reopened after several days without bear activity. At Ramsey Cascades, two incidents involved a bear taking backpacks and one a brief chase. No spray or firearm was used.",
+ txt:`In the Great Smokey Mountains National Park, Abrams Falls Trail was temporarily closed after three incidents involving an aggressive bear, including one in which a black bear bit a person who entered a closed area. (Per news reports, rangers also responded to three incidents at Ramsey Cascades Trail, including one in which a bear displayed aggressive behavior and briefly chased a group).`,url:"https://www.nps.gov/grsm/learn/news/bear-incidents-prompts-trail-closure-safety-reminder-in-great-smoky-mountains-national-park.htm"},
+{d:"May 3",m:5,place:"Glacier National Park, Montana",c:"US",la:48.70,ln:-113.80,pr:"area",sp:"Grizzly",out:"Fatal",spray:true,lc:NF,
+ txt:`In an apparent case of bear spray failure, a lone male hiker was killed by a grizzly in Glacier National Park May 3. A completely discharged can of bear spray was found near his body. A report states that the victim sustained extensive trauma to the left side of his head and face, and the damage exposed internal structures of the skull, indicating the force of the attack.`,url:"https://www.outsideonline.com/outdoor-adventure/exploration-survival/anthony-pollio-glacier-bear-attack-report/"},
+{d:"May 4",m:5,place:"Mystic Falls Trail near Biscuit Basin, Yellowstone National Park",c:"US",la:44.48,ln:-110.85,pr:"area",sp:"Grizzly",out:"Injured",spray:true,
+ txt:`Two brothers were mauled and seriously injured by a grizzly May 4 while they were hiking in Yellowstone National Park. A family member said they had deployed bear spray, but the National Park Service refuses to confirm or deny if pepper spray was used.`,url:"https://www.jhnewsandguide.com/news/environmental/brothers-seriously-injured-after-bear-attack-in-yellowstone-national-park/article_e13a3e0c-9048-465a-b11d-6ac167140a4a.html"},
+{d:"May 8",m:5,place:"Northern Saskatchewan",c:"Canada",la:57.00,ln:-105.50,pr:"rough",sp:"Black",out:"Fatal",lc:NF,
+ txt:`A black bear killed a 27-year-old male worker from India at uranium mining company's facility in northern Saskatchewan on May 8.`,url:"https://www.cbc.ca/news/canada/saskatoon/fatal-bear-attack-9.7197303"},
+{d:"May 16",m:5,place:"Caribou-Targhee National Forest, Idaho",c:"US",la:44.20,ln:-111.40,pr:"rough",sp:"Grizzly",out:"No injury stated",gun:true,
+ lc:"Link matches: evening of May 16 near Cave Falls Road, a hunter and his young son, sidearm then rifle, bear killed within 5 yards, no injuries mentioned.",
+ txt:`A man hunting black bears in Idaho shot and killed a charging grizzly at close range May 16 when it charged the man and his son in the Caribou-Targhee National Forest. The hunters were sitting on the edge of a meadow when a grizzly began crossing it and seemed to pick up their scent. The grizzly then changed direction and headed directly toward the two hunters. As the hunters attempted to alert the grizzly to their presence, it began to charge directly toward them. The man fired at the charging bear with his sidearm before quickly switching to his hunting rifle, killing it within 5 yards of where he was standing.`,url:"https://idfg.idaho.gov/article/hunter-shoots-charging-grizzly-bear-defense-life-near-cave-falls-road"},
+{d:"May 25",m:5,place:"Near Squamish, BC",c:"Canada",la:49.70,ln:-123.15,pr:"site",sp:"Black",out:"Injured",lc:NF,
+ txt:`A man running on a trail was attacked and injured by a black bear May 25 near Squamish, B.C., after he came upon a sow with two cubs.`,url:"https://www.squamishchief.com/local-news/black-bear-charges-runner-near-squamish-estuary-conservation-officers-urge-public-to-stay-out-12332660"},
+{d:"May 28",m:5,place:"Grinnell Glacier Trail, Glacier National Park, Montana",c:"US",la:48.80,ln:-113.70,pr:"area",sp:"Grizzly",out:"Injured",
+ txt:`Another hiker suffered severe arm injuries and was airlifted to a hospital after being attacked by a grizzly May 28 in Glacier National Park in a separate attack.`,url:"https://www.foxnews.com/travel/grizzly-bear-mauls-hiker-drags-him-dozens-feet-glacier-national-park-trail"},
+{d:"May 29",m:5,place:"Catskill, New York",c:"US",la:42.218,ln:-73.865,pr:"site",sp:"Black",out:"Injured",
+ lc:"The link confirms the date and place. It does not give her age, injury severity or species; it says she was smacked, fell and was trampled, and that she thought the bear seemed sick or hurt.",
+ txt:`In Catskill, New York, a 70-year-old woman sustained minor injuries when she was attacked by a black bear in her yard.`,url:"https://wnyt.com/top-stories/greene-county-woman-attacked-by-bear-in-her-own-backyard/"},
+{d:"June 5",m:6,place:"Huson, Montana",c:"US",la:47.03,ln:-114.29,pr:"site",sp:"Grizzly",out:"No injury stated",gun:true,
+ lc:"The link was posted June 5 and says 'earlier this week', so June 5 may be the posting date rather than the incident date. It says the family first thought it was a black or cinnamon bear, and does not say whether anyone was hurt.",
+ txt:`A 15-year-old boy in Huson, Montana, shot and killed a grizzly bear in self-defense on June 5 after the animal charged him at his family’s chicken coop. The teen used a .270 rifle to stop the charge. Neither he nor any family members were injured.`,url:"https://www.krtv.com/news/montana-and-regional-news/montana-teen-shoots-charging-grizzly-bear-in-his-backyard"},
+{d:"June 8",m:6,place:"Mammoth Lakes, California",c:"US",la:37.648,ln:-118.972,pr:"site",sp:"Black",out:"Injured",
+ lc:"Link matches (about 6 a.m., a 70-pound bear). It adds that the woman hit the bear with a water bottle, as well as the husband's hatchet.",
+ txt:`A California couple sustained "significant" injuries this after they were attacked by a black bear outside the door of their Mammoth Lakes home, according to officials. The woman opened her door in Mammoth Lakes to find one of her dogs fighting with a black bear. She was injured when she tried to save her dog, as was her husband when he went outside. The man reportedly fought the bear off with a hatchet. The California Department of Fish and Wildlife euthanized the bear after determining it was a threat to public safety.`,url:"https://www.foxnews.com/us/california-couple-fights-70-pound-black-bear-hatchet-water-bottle-outside-home"},
+{d:"June 13",m:6,place:"Dome Trail, Anchorage, Alaska",c:"US",la:61.22,ln:-149.90,pr:"area",sp:"Brown",out:"Injured",spray:true,
+ txt:`A brown bear attacked and inflicted serious injuries on a man biking the Dome Trail in Anchorage. This is the second aggressive bear encounter on the Dome Trail in less than a year. A brown bear mauled and seriously injured a woman hiking there last July.`,url:"https://alaskapublic.org/news/anchorage/2026-06-16/brown-bear-attacks-biker-on-dome-trail-in-anchorage"},
+{d:"June 15",m:6,place:"Crestline, California",c:"US",la:34.242,ln:-117.286,pr:"site",sp:"Black",out:"Injured",lc:NF,
+ txt:`A black bear invaded a home in Crestline, California on June 15 and mauled an autistic 19-year-old boy while he was sleeping.`,url:"https://www.latimes.com/california/story/2026-06-17/bear-claws-19-year-olds-face-chest-through-window-of-crestline-home"},
+{d:"June 16",m:6,place:"Mount Si, Washington",c:"US",la:47.488,ln:-121.723,pr:"site",sp:"Black",out:"Injured",
+ lc:"Link matches: about 2.7 miles up the trail, a teenage boy was scratched and taken to hospital.",
+ txt:`On June 16, a teenager was injured when a black bear charged and attacked a group of hikers on a trail on Washington's Mount Si.`,url:"https://wdfw.wa.gov/newsroom/wdfw-statement/human-black-bear-incident-king-county"},
+{d:"June 21",m:6,place:"Shuswap Memorial Cemetery trails, near Salmon Arm, BC",c:"Canada",la:50.70,ln:-119.27,pr:"site",sp:"Black",out:"Injured",lc:NF,
+ txt:`On June 21, a woman was hiking with her dog along the Shuswap Memorial Cemetery trails near Salmon Arm, British Columbia, when they encountered a black bear with cub. The woman's dog chased the cub up a tree, and the sow attacked the woman. After the bears left, the woman walked to the trailhead and was transported to the hospital for treatment of her injuries.`,url:"https://www.cbc.ca/news/canada/british-columbia/bear-attack-trail-closed-salmon-arm-9.7244725"},
+{d:"June 21",m:6,place:"Near Golden, Colorado (Apex Park per link)",c:"US",la:39.715,ln:-105.215,pr:"site",sp:"Black",out:"Injured",flag:"The source lists this under June 21, but the text itself only says \"In June.\"",lc:NF,
+ txt:`In June, near Golden, Colorado, a black bear scratched a woman’s leg, ripped off her backpack and followed the woman for about 30 minutes, despite her shouting and throwing rocks and sticks.`,url:"https://www.outsideonline.com/outdoor-adventure/hiking-and-backpacking/colorado-bear-attack-apex-park-golden/"},
+{d:"July 4",m:7,place:"Connecticut",c:"US",la:41.60,ln:-72.70,pr:"rough",sp:"Black",out:"No injury stated",
+ lc:"Link matches: filmed Saturday, July 4. The boy was 6 and the husky bit the bear's rear. The town isn't given.",
+ txt:`In Connecticut, a young boy was playing outside his home when a large black bear suddenly sprinted toward him. Home security cameras captured the scene as the bear closed in fast, leaving the child with no time to run or find cover. Just before the bear reached the boy, the family’s husky rushed in to confront the bear and drive it away.`,url:"https://abcnews.com/GMA/News/dog-gets-charging-bear-young-boy/story?id=134548164"},
+{d:"July 4",m:7,place:"Tahoma, Lake Tahoe, California",c:"US",la:39.067,ln:-120.125,pr:"site",sp:"Black",out:"No injury stated",spray:true,
+ txt:`A black bear charged a man outside his Lake Tahoe home, but was repelled by bear spray.`,url:"https://abcnews.com/US/bear-charges-father-lake-tahoe-home-dramatic-video/story?id=134633182"},
+{d:"July 9",m:7,place:"Kenai, Alaska",c:"US",la:60.554,ln:-151.258,pr:"site",sp:"Brown",out:"Injured",gun:true,
+ lc:"Link matches (about 4:54 a.m.). It adds that a sow with two cubs was in her front yard, she fired 3 or 4 shotgun rounds herself, and the sow still attacked her on the front deck.",
+ txt:`A Kenai, Alaska woman was seriously injured by an attacking brown bear July 9 on the deck of her home, despite firing warning shots with a shotgun.`,url:"https://dailydispatch.dps.alaska.gov/Home/DisplayIncident?incidentNumber=AK26065582"},
+{d:"July 10",m:7,place:"Opal Hills Trail, Jasper National Park, Alberta",c:"Canada",la:52.87,ln:-118.08,pr:"area",sp:"Grizzly",out:"Injured",spray:true,
+ txt:`Parks Canada said one of two hikers in Jasper National Park sustained minor injuries, despite deploying bear spray, after encountering a female grizzly with cubs. Authorities said the bear spray likely prevented more serious injuries.`,url:"https://www.jasperlocal.com/2026/07/16/prepared-hikers-credited-with-limiting-injuries-in-rare-jasper-grizzly-encounter/"},
+{d:"July 15",m:7,place:"Lake McTavish (couple from Regina)",c:"Not stated",la:null,ln:null,pr:"none",sp:"Black",out:"Fatal",flag:"Not on the map: the source doesn't say which province Lake McTavish is in.",lc:NF,
+ txt:`On July 15, a retired couple from Regina, Canada were killed by a black bear near their cabin at Lake McTavish where they had gone to fish. A bear suspected in the attack was killed by authorities.`,url:"https://people.com/retired-couple-killed-in-suspected-bear-attack-while-fishing-at-lake-12022085"},
+{d:"July 18",m:7,place:"Trail above Bear Valley neighborhood, south Anchorage, Alaska (near Chugach State Park)",c:"US",la:61.10,ln:-149.75,pr:"area",sp:"Brown",out:"Injured",
+ txt:`A woman hiking with a friend and three dogs suffered non-life-threatening injuries when she was attacked by a brown bear near Chugach State Park in south Anchorage, Alaska.`,url:"https://alaskapublic.org/news/anchorage/2026-07-21/hiker-injured-in-south-anchorage-bear-attack"},
+{d:"July 19",m:7,place:"Vancouver Island, BC",c:"Canada",la:49.65,ln:-125.40,pr:"rough",sp:"Black",out:"Injured",
+ lc:"Only the headline and summary of this page could be read (black bear attack, hiker hospitalized, 'over the weekend'). The two hikers, dog and cubs are not confirmed there.",
+ txt:`The first of two black bear attacks on Vancouver Island this year occurred July 19 when two hikers walking with a dog encountered a female black bear with cubs. One hiker was hospitalized for treatment of injuries.`,url:"https://www.ctvnews.ca/vancouver/article/black-bear-attacks-hiker-on-vancouver-island/"},
+{d:"July 24",m:7,place:"Henrys Lake State Park, near Island Park, Idaho",c:"US",la:44.62,ln:-111.37,pr:"site",sp:"Grizzly",out:"Injured",
+ lc:"The link confirms the date, the Aspen Loop Trail, that he walked out, and ambulance transport to hospital. The page text says only 'a bear'; 'grizzly' appears only in an image name.",
+ txt:`A man jogging with his dog in Henrys Lake State Park near Island Park, Idaho was attacked and injured by a bear identified as a grizzly. The man, who was able to walk out of the park, was hospitalized. The extent of his injuries was not released.`,url:"https://idfg.idaho.gov/article/jogger-attacked-bear-henrys-lake-state-park"},
+{d:"August 1",m:8,place:"Mount Hinton, near Keno City, Yukon",c:"Canada",la:63.91,ln:-135.30,pr:"site",sp:"Grizzly",out:"No injury stated",spray:true,lc:NF,
+ txt:`On Aug 1, a "potentially predatory" grizzly bear stalked a hiker down a trail near Keno City, Yukon for an hour. In the encounter on Mount Hinton, the hiker had to use bear spray to protect themselves. The bear still followed the hiker and two leashed dogs all the way back to their vehicle. A conservation officer with the territory’s department of environment said behavior like that is "typical of a non-defensive, potentially predatory bear."`,url:"https://www.cbc.ca/news/canada/north/predatory-grizzly-keno-city-yukon-9.7300431"},
+{d:"August 2",m:8,place:"Near Tyaughton Lake, BC",c:"Canada",la:51.00,ln:-122.75,pr:"site",sp:"Grizzly",out:"Injured",lc:NF,
+ txt:`A 72-year-old female hiker was airlifted to a hospital with serious injuries after she was attacked by a sow grizzly with a cub near Tyaughton Lake in British Columbia on Aug 2. The woman sustained a C1 vertebra neck fracture along with multiple wounds to her face, arms, and neck.`,url:"https://www.cbc.ca/lite/story/9.7298662"},
+{d:"August 4",m:8,place:"Near Snowmass, Colorado",c:"US",la:39.213,ln:-106.938,pr:"site",sp:"Black",out:"No injury stated",flag:"The source lists this under August 4, but the text itself says \"In early August.\"",lc:NF,
+ txt:`In early August, a minor who was out scouting for hunting season was followed by a black bear that followed him and chased him up a tree near Snowmass, Colorado. The minor eventually was able to fight the bear off, according to published reports.`,url:"https://www.summitdaily.com/news/colorado-high-country-black-bear-attacks-drought/"},
+{d:"August 9",m:8,place:"Maple Ridge, near Vancouver, BC",c:"Canada",la:49.219,ln:-122.598,pr:"site",sp:"Black",out:"Injured",gun:true,
+ txt:`3-year-old girl was attacked by a black bear while the girl was playing on the back deck of her home in Maple Ridge near Vancouver, British Columbia. The girl was airlifted to a hospital with non-life-altering injuries. A parent chased the bear away, but it kept returning to the scene and was eventually killed by authorities.`,url:"https://www.outdoorlife.com/survival/black-bear-attacks-child-british-columbia/"},
+{d:"August 9",m:8,place:"Rutherford Creek drainage, near Pemberton, BC",c:"Canada",la:50.32,ln:-122.80,pr:"site",sp:"Grizzly",out:"Injured",lc:NF,
+ txt:`A grizzly injured a man in what authorities said was a close-range surprise encounter in the Rutherford Creek drainage near Pemberton, British Columbia. The man was able to get himself to safety and seek medical attention.`,url:"https://www.cbc.ca/news/canada/british-columbia/grizzly-bear-attack-near-pemberton-backcountry-9.7302291"},
+{d:"August 10",m:8,place:"History Trail, Teton Pass, Wyoming",c:"US",la:43.497,ln:-110.955,pr:"site",sp:"Black",out:"Injured",spray:true,
+ lc:"The link names the History Trail and calls it a defensive encounter with a 'presumed' black bear sow with at least one cub. It says she deployed spray successfully; the 'did not prevent injury' and 'lessened injuries' wording is not on the page.",
+ txt:`A woman was injured by a black bear Aug 10 while she was hiking with her dogs near Teton Pass in Wyoming. Authorities attributed the attack to a sow with at least one cub, and categorized it as defensive. The use of bear spray did not prevent injury, but authorities believe it lessened injuries, and the woman was able to walk back to the trailhead and seek medical attention.`,url:"https://wgfd.wyo.gov/news-events/game-and-fish-investigates-bear-inflicted-human-injury"},
+{d:"August 12",m:8,place:"Near Cedar Crest, New Mexico",c:"US",la:35.109,ln:-106.373,pr:"site",sp:"Black",out:"Injured",lc:NF,
+ txt:`A man injured by a black bear near Cedar Crest, New Mexico. Cedar Crest is part of the Albuquerque metropolitan area.`,url:"https://www.koat.com/article/new-mexico-bear-sightings/73423982"},
+{d:"August 13",m:8,place:"Chugach State Park trail, Anchorage, Alaska",c:"US",la:61.15,ln:-149.70,pr:"area",sp:"Brown",out:"Injured",spray:true,lc:NF,
+ txt:`On Aug 13, a brown bear attacked and injured a female runner on a popular Chugach State Park trail in Anchorage. The woman deployed bear spray, but apparently not in time to prevent her from being injured. The woman self-evacuated to a hospital.`,url:"https://www.theguardian.com/us-news/2026/aug/19/alaska-bear-attack-athlete"},
+{d:"August 14",m:8,place:"Near Duncan, Vancouver Island, BC",c:"Canada",la:48.778,ln:-123.708,pr:"site",sp:"Black",out:"Injured",lc:NF,
+ txt:`A park was closed and a woman was hospitalized following an attack by a black bear Aug 14 near Duncan on Vancouver Island, BC. The woman was walking her dogs when she encountered a sow with a cub. The woman suffered a concussion, a torn lung, a broken bone in her ankle, and multiple puncture wounds on her neck and upper shoulder. She was able to walk away until a firefighter spotted her, administered first aid and summoned help.`,url:"https://www.timescolonist.com/local-news/north-cowichan-woman-who-survived-bear-attack-still-driven-to-protect-wild-spaces-12850908"},
+{d:"August 15",m:8,place:"North of Lake Whatcom, Whatcom County, Washington",c:"US",la:48.78,ln:-122.35,pr:"area",sp:"Black",out:"No injury stated",flag:"Not injured by the bear itself; the text says she was cut by falling into a blackberry bush.",
+ txt:`A woman was hiking with her leashed dog in a forested area of Whatcom County, Washington, Aug 15. when they encountered a black bear. The bear charged the woman, then followed her and continued to charge at her, according to the Washington Department of Fish and Wildlife (WDFW). She was not injured by the bear, but suffered cuts from falling and retreating into a blackberry bush. The bear displayed classic predatory black bear behavior.`,url:"https://wdfw.wa.gov/newsroom/wdfw-statement/human-black-bear-incident-whatcom-county"},
+{d:"August 16",m:8,place:"Port Coquitlam, BC (metro Vancouver)",c:"Canada",la:49.262,ln:-122.781,pr:"site",sp:"Black",out:"Injured",
+ lc:"Link matches: Sunday, August 16, about 3 p.m. The bear returned that evening, was tranquilized and put down. The article calls it the second Lower Mainland attack in two weeks.",
+ txt:`In another metro Vancouver attack this year, a man was bitten by a black bear outside his apartment complex in Port Coquitlam, according to the B.C. Conservation Officer Service.`,url:"https://fraservalleytoday.ca/2026/08/18/conservation-officers-kill-bear-after-it-attacked-a-man-in-port-coquitlam/"},
+{d:"August 17",m:8,place:"Anmore, BC",c:"Canada",la:49.315,ln:-122.856,pr:"site",sp:"Black",out:"Injured",
+ lc:"Link matches. It adds that the attacking bear was never found; a different bear was captured, judged not to be the attacker, and relocated.",
+ txt:`On Aug 17, the B.C. Conservation Officer Service responded to an attack on a woman in her backyard of her Anmore home by a black bear. The woman, who was on the back deck of her home with her dog, received medical attention for non-life-threatening injuries.`,url:"https://ca.news.yahoo.com/bear-attack-anmore-backyard-injures-220311535.html"},
+{d:"August 17",m:8,place:"Near Eagle-Vail, Colorado",c:"US",la:39.626,ln:-106.481,pr:"site",sp:"Black",out:"Injured",lc:NF,
+ txt:`On Aug. 17, a man was injured after encountering a black bear at an apartment complex near Eagle-Vail, according to Colorado Parks and Wildlife. The man was leaving a building laundry room when he encountered a female black bear.`,url:"https://people.com/man-leaving-laundry-room-black-bear-swiped-fell-trying-escape-12063404"},
+{d:"August 17",m:8,place:"Steamboat Springs, Colorado",c:"US",la:40.485,ln:-106.832,pr:"site",sp:"Not stated",out:"Injured",lc:NF,
+ txt:`On Aug 17, in Steamboat Springs, Colorado, a woman was injured after a bear forced its way into her home. The woman suffered cuts to her face when she tried to scare the bear outside. She was treated at a hospital and released.`,url:"https://www.steamboatradio.com/2026/08/19/a-bear-has-attacked-a-woman-in-steamboat-springs/"},
+{d:"August 18",m:8,place:"Bells Flats, Kodiak Island, Alaska",c:"US",la:57.73,ln:-152.47,pr:"site",sp:"Brown",out:"Injured",
+ lc:"The link confirms the date and details, but says 'sow bear' and does not name the species.",
+ txt:`On August 18, an adult female was attacked by a brown bear near Bells Flats on Kodiak Island, Alaska. The woman was walking her dog near a salmon stream when she encountered a sow with cubs. The bear bit the victim several times on the legs, but the dog’s barking diverted the bear’s attention. The victim was able to crawl away and play dead. Once the sow and cubs left, the victim called 911 and walked to the nearest residence. She sustained non-life-threatening injuries and was transported to a local hospital for treatment.`,url:"https://alaska-native-news.com/woman-walking-her-dog-in-bells-flats-mauled-by-sow-with-cubs/85763/"},
+{d:"August 18",m:8,place:"Asheville, North Carolina",c:"US",la:35.595,ln:-82.551,pr:"site",sp:"Black",out:"Injured",
+ lc:"Link (NCWRC) matches: Tuesday night, August 18; the woman was treated and released. It adds that the bear has a history of entering homes and officials are trying to capture her and her cubs.",
+ txt:`On Aug. 18, a female black bear entered a home in Asheville, North Carolina, and injured a woman on its way out. The NCWRC said the bear continues to break into homes which have no unsecured trash or other unsecured attractants. Officials say the bear poses a threat to human safety and efforts are being made to find and dispatch the bear.`,url:"https://www.ncwildlife.gov/news/press-releases/2026/08/19/wildlife-agency-responds-buncombe-county-resident-injured-black-bear-inside-her-home"},
+{d:"August 18",m:8,place:"Near Roosevelt Middle School, Red Lodge, Montana",c:"US",la:45.186,ln:-109.247,pr:"site",sp:"Black",out:"No injury stated",flag:"The source lists this under August 18, but the text itself says \"In the third week of August.\"",
+ txt:`In the third week of August, a black bear attempted to attack a person walking near Roosevelt Middle School in Red Lodge, Montana. A good Samaritan intervened and was able to prevent the attack. Officials said the incident was predatory in nature because the black bear was approached the person slowly, purposefully and methodically.`,url:"https://www.montanarightnow.com/missoula/close-black-bear-encounter-in-red-lodge-enforces-need-for-bear-safety-in-town/article_ec267e13-ac95-4c8a-a9c7-4824d3e7c09e.html"},
+{d:"August 19",m:8,place:"Rio Grande Park, Aspen, Colorado",c:"US",la:39.191,ln:-106.818,pr:"site",sp:"Black",out:"Injured",lc:NF,
+ txt:`On Aug 19, a black bear injured a homeless man sleeping in an Aspen, Colorado park. The man was sleeping in Rio Grande Park when a bear bit him on the head. He was treated for head and facial injuries and later released from the hospital. An adult female bear, which did not have cubs, was euthanized in accordance with CPW policy.`,url:"https://www.denverpost.com/2026/08/19/bear-bites-homeless-man-aspen/"},
+{d:"August 19",m:8,place:"Near Kasilof, Kenai Peninsula, Alaska",c:"US",la:60.337,ln:-151.274,pr:"site",sp:"Brown",out:"No injury stated",gun:true,
+ lc:"No link: this was reported directly to the author by a reader, with no news report.",
+ txt:`In an attempted attack reported directly to me by a reader, a hunter and his companion were surprised and charged by a female brown bear at close range on Aug 19. The hunters were charged while they were hunting near Kasilof, Alaska, on the Kenai Peninsula. The hunter shot the bear in self defense and it dropped at a distance of six yards. "When she saw us, she attacked," he said. No cubs were seen.`,url:""},
+{d:"August 20",m:8,place:"Near Crystal, New Mexico",c:"US",la:36.03,ln:-108.95,pr:"site",sp:"Black",out:"Fatal",
+ lc:"The link confirms a 67-year-old man died on August 20 after a bear broke into his home, and that Navajo officials neutralized the bear. It says 'Crystal River', does not name the species, says he had a seizure and used a walker and wheelchair, and does not mention a 'third black bear attack in New Mexico'.",
+ txt:`A disabled 67-year-old man was killed by a black bear that broke into his home Aug. 20, near Crystal, New Mexico, a small community located near the Arizona border. Navajo police said the bear was later located and neutralized. Family members described the scene of the attack at "horrific." This attack was the THIRD black bear attack in New Mexico so far this year.`,url:"https://nbcmontana.com/news/nation-world/elderly-man-fatally-mauled-bear-breaks-into-home-crystal-river-navajo-nation-new-mexico-bears-sightings-maul-maulings-attacks-food-hibernation-drought-fish-wildlife-department-investigation"},
+{d:"August 21",m:8,place:"Near Red River, New Mexico",c:"US",la:36.708,ln:-105.407,pr:"site",sp:"Black",out:"Injured",
+ lc:"The link confirms Friday, August 21 and a non-life-threatening bite while camping. It does not name the species.",
+ txt:`A man sustained non-life-threatening injuries Aug. 21 after he was bitten by a black bear while camping near Red River, New Mexico.`,url:"https://www.taosnews.com/public-safety/bear-bites-camper-near-red-river/article_d5a9a471-d82d-57f6-8b90-bbb9c2ac278a.html"},
+{d:"August 21",m:8,place:"Near the confluence of the Platte rivers, Jefferson County, Colorado",c:"US",la:39.58,ln:-105.25,pr:"rough",sp:"Black",out:"Injured",
+ txt:`On Aug 21, a fisherman was walking towards a parking lot near the South Platte river in Colorado when he was attacked by a sub-adult black bear. Although the man wasn't carrying any fish, witnesses say the sow knocked him to the ground and bit his legs. It took several minutes for the man's friends to scare the bear away.`,url:"https://www.cbsnews.com/colorado/news/fisherman-attacked-bear-colorado-platte-rivers/"},
+{d:"August 24",m:8,place:"Richard Juryn trail network, Lower Seymour Conservation Reserve, North Vancouver, BC",c:"Canada",la:49.40,ln:-122.97,pr:"area",sp:"Black",out:"Injured",
+ txt:`BC Conservation officers issued a warning after the FOURTH bear attack in metro Vancouver. On Aug 24, a man was attacked by a black bear that followed him for some time and injured his leg while the man was walking on the Richard Juryn trail network.`,url:"https://ca.news.yahoo.com/fourth-bear-attack-metro-vancouver-161227784.html"},
+{d:"August 27",m:8,place:"About 100 miles south of Deadhorse, Alaska",c:"US",la:68.75,ln:-148.46,pr:"rough",sp:"Brown",out:"Injured",gun:true,
+ txt:`On August 27, a Washington man was unexpectedly charged at close range and attacked by a brown bear while he was hunting caribou with his cousin about 100 miles southwest of Deadhorse, Alaska. He sustained severe facial lacerations and broken bones, and is facing multiple surgeries. During the attack, the cousin fired his handgun at the bear, causing the bear to turn it's attention to him. The bear knocked him to the ground and injured his arm and backside before retreating. The cousin, a doctor, was able to control the first victim's bleeding before the two used a satellite phone to send an SOS for airlift evacuation.`,url:"https://www.kiro7.com/news/local/wa-man-survives-bear-attack-alaska/RQLRNFPZVVBI3KELJ2ITPUWZV4/"},
+{d:"August 27",m:8,place:"Estes Park, Colorado",c:"US",la:40.377,ln:-105.521,pr:"site",sp:"Black",out:"Injured",
+ txt:`Also in Colorado, a woman in her 80s sustained abdominal injuries from an attack by a black bear that broke into her Estes Park home on Aug 27.`,url:"https://coloradosun.com/2026/08/28/bear-attacks-colorado-woman-in-her-home/"},
+{d:"August 28",m:8,place:"Steamboat Springs, Colorado",c:"US",la:40.485,ln:-106.832,pr:"site",sp:"Black",out:"No injury stated",gun:true,lc:NF,
+ txt:`In an 11th attack or attempted attack this year in Colorado, a Steamboat Springs resident was forced to shoot a black bear Aug 28 when the bear charged him inside his home. The shooting and wounding of the bear occurred after the resident tried to haze the bear out of his home, resulting in the bear charging instead. Colorado Parks and Wildlife officers responded and euthanized the injured bear.`,url:"https://www.steamboatpilot.com/news/bear-shot-euthanized-after-entering-steamboat-springs-home/"},
+{d:"August 29",m:8,place:"Mt. Riley Road, Haines, Alaska",c:"US",la:59.21,ln:-135.42,pr:"site",sp:"Brown",out:"Injured",
+ lc:"The link says she was in serious but stable condition, treated at the SEARHC clinic, and walked home; it does not mention hospitalization or surgery (it may predate later updates). Tracks were believed to be a female brown bear and cub, not confirmed as the attacker.",
+ txt:`In Haines, Alaska, a woman was attacked and seriously injured by a brown bear Aug 29 while the woman was walking her dog on Mt. Riley Road. Reports indicate the woman was hospitalized and underwent surgery, and more surgeries may be needed.`,url:"https://www.chilkatvalleynews.com/2026/08/29/resident-mauled-by-bear-on-mt-riley-road/"},
+{d:"August 31",m:8,place:"Cedar Flats trail complex, north of Columbia Falls, Montana",c:"US",la:48.45,ln:-114.18,pr:"area",sp:"Grizzly",out:"Injured",
+ lc:"The link says about 7 p.m., she was 'significantly' injured and taken to Logan Health, and that investigators had not yet determined the species. It does not mention a cub, 'life-altering' injuries or the deer carcass.",
+ txt:`On Aug 31, a woman suffered "life-altering" severe injuries when she was attacked by a sow grizzly bear with at least one cub as the woman was walking her dog on the Cedar Flats trail complex north of Columbia Falls, Montana. Investigators located a cached whitetail deer carcass about 100 yards off the trail.`,url:"https://flatheadbeacon.com/2026/09/01/bear-attacks-woman-on-trail-north-of-columbia-falls-area-closed/"},
+{d:"September 1",m:9,place:"Queest Mountain FSR, Malakwa, near Sicamous, BC",c:"Canada",la:50.93,ln:-118.80,pr:"area",sp:"Grizzly",out:"Injured",lc:NF,
+ txt:`A man was injured in a grizzly bear attack in the Malakwa area near Sicamous on Sept 1, according to B.C. conservation officers. The hiker was walking with his off-leash dog along the Queest Mountain Forest Service Road when a grizzly bear approached. The bear chased the dog and then attacked the man, lashing out at him. The man was treated for non-life-threatening injuries.`,url:"https://vancouversun.com/news/hiker-attacked-by-grizzly-bear-on-forest-service-road-near-sicamous"},
+{d:"September 2",m:9,place:"Kenai National Wildlife Refuge, Alaska",c:"US",la:60.40,ln:-150.40,pr:"area",sp:"Brown",out:"Injured",gun:true,lc:NF,
+ txt:`A moose hunter from Soldotna, Alaska was injured by a brown bear on Sept 2 in the Kenai National Wildlife Refuge. The hunter was moving through trees when he heard a noise and saw a brown bear charging him from 10 feet away, leaving him no time to respond. The hunter was struck in the shoulder and blacked out. His companion fired two shots from his pistol, possibly wounding the bear, which ran away. The hunter's coat was shredded, but the claws did not break the skin. Even so, the hunter will require six weeks of physical therapy for his bruised and battered shoulder.`,url:"https://people.com/man-says-he-blacked-out-during-alaska-bear-attack-12116772"},
+{d:"September 3",m:9,place:"Steamboat Springs, Colorado",c:"US",la:40.485,ln:-106.832,pr:"site",sp:"Black",out:"Injured",spray:true,lc:NF,
+ txt:`Colorado recorded its EIGHTH black bear attack this year in Steamboat Springs on Sept 3 when a bear entered a backyard where an adult was napping in a patio chair. The bear popped its jaws and scratched the victim's leg, inflicting minor injuries before the bear was driven off by a neighbor using bear spray.`,url:"https://www.kare11.com/article/news/nation-world/bear-attack-colorado/507-cc34d1ef-fc60-43c2-828a-26d26c5b4ee6"},
+{d:"September 4",m:9,place:"Near Whistler, BC",c:"Canada",la:50.116,ln:-122.957,pr:"site",sp:"Black",out:"Injured",lc:NF,
+ txt:`On Sept 4, three hikers encountered two bears near Whistler, British Columbia. One bear attacked a woman before disengaging. The B.C. Conservation Officer Service said the woman suffered a severely lacerated leg and was transported to a hospital by helicopter. Conservation officers found an adult male black bear at the site, which was euthanized due to public safety concerns, and authorities later confirmed the attack was by a black bear.`,url:"https://www.cbc.ca/news/canada/british-columbia/whistler-bear-attack-woman-injured-9.7333918"},
+{d:"September 6",m:9,place:"Near Bathurst, New Brunswick",c:"Canada",la:47.618,ln:-65.651,pr:"site",sp:"Black",out:"Injured",lc:NF,
+ txt:`On Sept 6, a 75-year-old trapper survived a black bear attack while picking blueberries near Bathurst, New Brunswick. The bear charged at him, leading to a struggle that resulted in serious injuries requiring emergency surgery.`,url:"https://www.cbc.ca/news/canada/new-brunswick/bathurst-man-survivs-bear-attack-9.7366129"},
+{d:"September 6",m:9,place:"Near Ione, Pend Oreille County, Washington",c:"US",la:48.741,ln:-117.410,pr:"site",sp:"Black",out:"Injured",
+ txt:`On Sept 6, a woman was injured when a black bear attacked her outside her home in Pend Oreille County, Washington. The woman retreated inside her house, and the bear left. The woman was treated for her injuries at a local hospital. Later that day, WDFW officers located and lethally removed a black bear near the attack scene.`,url:"https://www.kxly.com/news/woman-injured-in-black-bear-attack-near-home-in-pend-oreille-county/article_fc0e1cc8-18eb-4430-94b6-08a2e79ce7cb.html"},
+{d:"September 11",m:9,place:"Park Creek Campground, Colorado",c:"US",la:39.00,ln:-105.50,pr:"rough",sp:"Black",out:"Injured",flag:"Dot is placed in the middle of Colorado because the source doesn't say where in the state this campground is.",
+ lc:"The link confirms September 11 at 5:30 a.m. and an arm bite through the tent (ABC says a puncture wound treated at hospital). It does not call this the 'ninth' attack; it says the Sept 11 and Sept 13 attacks together bring Colorado's total to 10. It gives no location for the campground.",
+ txt:`On Sept 11, Colorado recorded its NINTH bear attack when a black bear attacked a woman at 5:30 a.m., biting a woman's arm while she was inside a tent at Park Creek Campground. The woman reported she felt something hit the tent and growl before it bit her. EMS treated her injuries, and she received follow-up treatment.`,url:"https://www.fox10phoenix.com/news/black-bears-attack-2-women-colorado-just-days-apart-bringing-yearly-total-10-encounters-surge"},
+{d:"September 13",m:9,place:"North of Lake Whatcom, near Bellingham, Washington",c:"US",la:48.77,ln:-122.35,pr:"site",sp:"Black",out:"Injured",
+ lc:"The link says WDFW did not share the location (private property outside Bellingham); 'north of Lake Whatcom' is the reporter's inference. The bear had not been caught.",
+ txt:`A black bear attacked a man and a child at a home north of Lake Whatcom near Bellingham, Washington Sept. 13. They were treated at a hospital for injuries and released. The attack came a month after a bear chased a hiker near Lake Whatcom. She suffered minor injuries after falling into blackberry bushes.`,url:"https://www.cascadiadaily.com/2026/sep/16/two-injured-sunday-in-black-bear-attack-near-bellingham/"},
+{d:"September 13",m:9,place:"Durango, Colorado",c:"US",la:37.275,ln:-107.880,pr:"site",sp:"Black",out:"Injured",
+ lc:"Link matches: early Sunday, September 13; a bear entered her bedroom through a window; scratches and bruising. ABC calls 10 attacks a record for the year.",
+ txt:`Colorado recorded its TENTH bear attack this year on Sept 13 when a black bear attacked a 17-year-old girl in Durango, Colorado, while she was asleep in her home. The bear ripped the window screen off and was able to open a cracked window and entered the room. The girl pulled blankets up and tried to hide when she saw the bear enter the room. The bear swiped at her and she felt the bear's paw hit her stomach. The bear left the room after the teenager screamed, then re-entered the room and exited after the teen continued to yell. Wildlife managers said the teenager had scratch marks and bruising on her stomach, and was "very lucky she had multiple blankets covering her when the bear swiped her,”`,url:"https://abcnews.com/US/17-year-girl-asleep-room-woman-tent-attacked/story?id=136472172"},
+{d:"September 14",m:9,place:"Elk Creek, southwest of Augusta, Montana",c:"US",la:47.40,ln:-112.55,pr:"area",sp:"Grizzly",out:"Injured",
+ txt:`A grizzly bear attacked a hunter near Augusta, Montana on Sept 14. It happened when an archery hunter after elk encountered the bear and was attacked, sustaining severe injuries. The attack happened on state land along Elk Creek southwest of Augusta. Investigators located the carcass of a domestic cow they suspect was killed by a bear about 150 yards from where the attack occurred.`,url:"https://www.choteauacantha.com/regional_news/article_69a8c372-17c6-40b3-94de-9b426c47092f.html"},
+{d:"September 17",m:9,place:"Near Cadomin, west of Edmonton, Alberta",c:"Canada",la:53.03,ln:-117.34,pr:"area",sp:"Grizzly",out:"No injury stated",gun:true,
+ txt:`On Sept 17, two elk hunters came across a grizzly sow and two cubs west of Edmonton, Canada. One of the cubs ran toward the hunters, followed by the sow, which charged them. Both hunters fired at the sow, which appeared to have been struck. The bear then broke off the charge. Based on evidence at the scene, investigating officers do not believe the bear was fatally struck.`,url:"https://ca.news.yahoo.com/hunters-shot-grizzly-charged-them-215838074.html"},
+{d:"September 19",m:9,place:"Trinity County, California",c:"US",la:40.65,ln:-123.10,pr:"rough",sp:"Black",out:"Injured",lc:NF,
+ txt:`A Northern California couple was seriously injured Sept 19 when a black bear attacked them outside their home in Trinity County. The man let his dog outside after the dog woke him, and when he went back outside to let the dog in, the bear attacked him, biting and clawing and breaking two ribs. That's when the dog went after the bear and was attacked. The man's wife awoke to the sound of screaming and fighting, went outside and found her dog in the bear's mouth. She struck the bear with a piece of patio furniture. The bear knocked her down and grabbed her by the head, inflicting wounds before fleeing. The dog did not survive.`,url:"https://www.sfchronicle.com/california/article/bear-attack-radio-ranch-french-bull-22447341.php"},
+{d:"September 21",m:9,place:"Jones Point Trail, Haines, Alaska",c:"US",la:59.235,ln:-135.445,pr:"area",sp:"Brown",out:"Injured",
+ lc:"The link confirms September 21, about 4 p.m., on the Jones Point Trail. Officials did not yet know which animal it was, so 'brown bear' is not confirmed, and the 'second such attack' claim is not on the page.",
+ txt:`A woman was attacked by a brown bear Sept 21 while hiking in Haines, Alaska. It was the second such attack in that area this year. Alaska Wildlife officials said the attack occurred on the Jones Point Trail. The bear is believed to be a sow with a cub. The woman was able to rescue herself and was receiving medical treatment for her injuries.`,url:"https://www.alaskasnewssource.com/2026/09/22/woman-escapes-haines-bear-attack-search-animal-continues/"},
+{d:"September 24, 2026",m:9,place:"Questa Woods subdivision, outside Seward, Alaska",c:"US",la:60.12,ln:-149.43,pr:"site",sp:"Brown",out:"Injured",
+ txt:`September 24, 2026, a man was mauled by a female brown bear in the Questa Woods subdivision outside of Seward, Alaska. He had just finished loading a dump truck with gravel when he left to explore an old flood channel with a supposed salmon fry population. He then encountered the sow with a cub at a distance of just 20 feet. The sow immediately charged and attacked. After the sow left him, he was hospitalized for treatment of his wounds.`,url:"https://sewardfolly.com/2026/10/01/cage-match-in-the-alder-patch/"},
+{d:"September 28",m:9,place:"Castlegar, BC",c:"Canada",la:49.324,ln:-117.659,pr:"site",sp:"Black",out:"Injured",
+ txt:`A man in Castlegar, B.C., was bitten by a black bear on the evening of Sept 28. The attack occurred around 8:30 p.m. while the man was sitting outside his home. The bite was not life‑threatening, and the man’s injuries were assessed as non‑serious. The bear was subsequently trapped and killed as a threat to public safety.`,url:"https://keremeosreview.com/2026/10/02/man-attacked-by-black-bear-in-castlegar/"},
+{d:"October 3",m:10,place:"Onion Lake Ski Trails, Hwy 37 between Terrace and Kitimat, BC",c:"Canada",la:54.30,ln:-128.60,pr:"site",sp:"Black",spLabel:"Black (suspected)",out:"Injured",
+ txt:`A woman was hospitalized after a suspected black bear attack near the Onion Lake Ski Trails on Highway 37 between Terrace and Kitimat, British Columbia, on Oct 3. Authorities said the attack was believed to be surprise and defensive, and that the bear likely reacted to the woman and then disengaged. Multiple bears, possibly a mother with cubs, were seen nearby.`,url:"https://terracestandard.com/2026/10/04/woman-hospitalized-after-suspected-black-bear-attack-near-onion-lake-ski-trails/"},
+{d:"October 5",m:10,place:"Solway Township, west of Duluth, Minnesota",c:"US",la:46.80,ln:-92.40,pr:"rough",sp:"Black",out:"Injured",
+ txt:`On Oct 5, A man and his dog were attacked by a black bear in Solway Township, Minnesota, when the man let his dogs out of his house. The bear attacked one of the dogs and pinned it to the ground. The man kicked the bear off his dog, and was then attacked by the bear, which then ran off up a tree. It was gone when law enforcement arrived. The injuries were not described as serious.`,url:"https://www.grandrapidsmn.com/news/man-dog-injured-in-encounter-with-bear-in-northeastern-minnesota/article_e459bafe-9cee-4769-9d52-c772aa3ca029.html"},
+{d:"October 7",m:10,place:"Near Salmon, Idaho",c:"US",la:45.176,ln:-113.896,pr:"site",sp:"Black",out:"Injured",gun:true,lc:NF,
+ txt:`Early in the morning of Oct 7, a juvenile black bear accompanied by a sow and another juvenile attempted to break into a home near Salmon, Idaho. A male resident was seriously injured when he tackled the bear through a door and outside to protect his daughters. His wife and family dog were also injured when they followed outside. The man had to be airlifted to a medical facility for treatment.The sow was shot and killed by a neighbor after the attack, and the juveniles were trapped and killed.`,url:"https://www.ktvb.com/article/news/local/juvenile-black-bears-euthanized-attack-salmon-residents/277-da9f0a10-271e-4e51-8b25-08fdf1c88418"},
+{d:"October 9",m:10,place:"Cherokee Orchard Road, Great Smoky Mountains National Park",c:"US",la:35.68,ln:-83.50,pr:"site",sp:"Black",out:"Injured",lc:NF,
+ txt:`On Oct 9, National Park Service law enforcement and wildlife rangers responded to a bear incident on Cherokee Orchard Road in Great Smoky Mountains National Park. Rangers encountered an aggressive black bear approaching visitors and climbing on vehicles. According to the NPS, the bear bit two visitors who were driving in open vehicles. Due to the bear’s aggressive and abnormal behavior and the immediate threat it posed to public safety, it was euthanized on scene.`,url:"https://www.facebook.com/61556267235966/posts/-bear-activity-has-prompted-new-closures-in-the-great-smoky-mountains-national-p/122322743024208907/"}
+];
+
+const PREC = {site:"Dot marks the named town or landmark",area:"Dot marks the middle of a park, trail system or area",rough:"Rough placement: only a region or distance is given",none:"Not mapped"};
+const SPECIES = [["Black","--black","Black bear"],["Grizzly","--grizzly","Grizzly"],["Brown","--brown","Brown bear"],["Not stated","--unknown","Species not stated"]];
+const spVar = sp => (SPECIES.find(s=>s[0]===sp)||SPECIES[3])[1];
+const spName = x => x.spLabel||(x.sp==="Not stated"?"Species not stated":x.sp==="Grizzly"?"Grizzly":x.sp+" bear");
+
+const state = {sp:"",out:"",c:"",month:0,spray:false,gun:false,q:""};
+DATA.forEach((x,i)=>x.id="inc-"+i);
+
+function el(tag, cls, text){ const e=document.createElement(tag); if(cls) e.className=cls; if(text!==undefined) e.textContent=text; return e; }
+function safeUrl(u){ try{ const p=new URL(u); return (p.protocol==="https:"||p.protocol==="http:") ? p.href : ""; }catch(e){ return ""; } }
+function matches(x){
+  if(state.sp && x.sp!==state.sp) return false;
+  if(state.out && x.out!==state.out) return false;
+  if(state.c && x.c!==state.c) return false;
+  if(state.month && x.m!==state.month) return false;
+  if(state.spray && !x.spray) return false;
+  if(state.gun && !x.gun) return false;
+  if(state.q && !(x.txt+" "+x.place).toLowerCase().includes(state.q)) return false;
+  return true;
+}
+
+// Nudge dots that share the same coordinates so each is clickable.
+(function spread(){
+  const groups={};
+  DATA.forEach(x=>{ if(x.la==null) return; const k=x.la.toFixed(2)+","+x.ln.toFixed(2); (groups[k]=groups[k]||[]).push(x); });
+  Object.values(groups).forEach(g=>{ if(g.length<2) return; g.forEach((x,i)=>{ const a=2*Math.PI*i/g.length; x.pla=x.la+0.06*Math.sin(a); x.pln=x.ln+0.09*Math.cos(a); }); });
+  DATA.forEach(x=>{ if(x.pla===undefined){ x.pla=x.la; x.pln=x.ln; } });
+})();
+
+function renderKey(){
+  const key=document.getElementById("key"); key.replaceChildren();
+  const ns="http://www.w3.org/2000/svg";
+  function dot(fill, stroke, sw, dash, op){
+    const s=document.createElementNS(ns,"svg"); s.setAttribute("width","18"); s.setAttribute("height","18"); s.setAttribute("aria-hidden","true");
+    const c=document.createElementNS(ns,"circle"); c.setAttribute("cx","9"); c.setAttribute("cy","9"); c.setAttribute("r","6.5");
+    c.setAttribute("style",`fill:var(${fill});fill-opacity:${op};stroke:var(${stroke});stroke-width:${sw}px;${dash?"stroke-dasharray:"+dash:""}`);
+    s.append(c); return s;
+  }
+  SPECIES.forEach(([k,v,l])=>{ const r=el("div"); r.append(dot(v,"--surface",1.5,"",.9), document.createTextNode(`${l} (${DATA.filter(x=>x.sp===k).length})`)); key.append(r); });
+  let r=el("div"); r.append(dot("--unknown","--fatal",3,"",.9), document.createTextNode("Red ring: fatal")); key.append(r);
+  r=el("div"); r.append(dot("--unknown","--unknown",2,"3 2",.3), document.createTextNode("Faded, dashed: rough location")); key.append(r);
+}
+
+// ---------- Map ----------
+const W=960, H=640;
+let svg=null, gRoot=null, gDots=null, projection=null, zoom=null, k=1;
+
+function warn(msg){ const w=document.getElementById("warn"); w.textContent=msg; w.classList.add("show"); }
+
+function showInfo(x){
+  const box=document.getElementById("info"); box.replaceChildren();
+  const close=el("button","x","×"); close.type="button"; close.setAttribute("aria-label","Close"); close.addEventListener("click",()=>box.classList.remove("show"));
+  box.append(close, el("b","",`${x.d}: ${x.place}`), el("div","",`${spName(x)}. ${x.out}.`));
+  const p=el("div","flag",PREC[x.pr]); box.append(p);
+  const b=el("button","linkbtn","Read the full entry"); b.type="button";
+  b.addEventListener("click",()=>{ const c=document.getElementById(x.id); if(c){ c.scrollIntoView({behavior:"smooth",block:"start"}); c.classList.add("flash"); setTimeout(()=>c.classList.remove("flash"),1800);} });
+  box.append(b); box.classList.add("show");
+}
+
+function initMap(){
+  if(typeof d3==="undefined" || typeof topojson==="undefined" || typeof Datamap==="undefined" || !Datamap.prototype.worldTopo || !Datamap.prototype.usaTopo){
+    warn("The map outlines couldn't load in this view. Download this file and open it in a web browser to see the map. The full list below still works.");
+    document.querySelector(".mapbox").style.display="none";
+    return false;
+  }
+  const worldTopo=Datamap.prototype.worldTopo, usaTopo=Datamap.prototype.usaTopo;
+  const world=topojson.feature(worldTopo, worldTopo.objects.world).features;
+  const states=topojson.mesh(usaTopo, usaTopo.objects.usa, (a,b)=>a!==b);
+
+  projection=d3.geo.albers().rotate([108,0]).center([0,52]).parallels([40,62]).scale(1).translate([0,0]);
+  // Fit the projection to the incident dots, with padding.
+  const pts=DATA.filter(x=>x.la!=null).map(x=>projection([x.ln,x.la]));
+  const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]);
+  const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
+  const pad=50, s=Math.min((W-2*pad)/(x1-x0),(H-2*pad)/(y1-y0));
+  projection.scale(s).translate([W/2-s*(x0+x1)/2, H/2-s*(y0+y1)/2]);
+  const path=d3.geo.path().projection(projection);
+
+  svg=d3.select("#map");
+  gRoot=svg.append("g");
+  gRoot.append("g").selectAll("path").data(world).enter().append("path")
+    .attr("d",path).attr("vector-effect","non-scaling-stroke")
+    .attr("style",d=>`fill:var(${(d.id==="USA"||d.id==="CAN")?"--land":"--land-other"});stroke:var(--border);stroke-width:.8px`);
+  gRoot.append("path").datum(states).attr("d",path).attr("vector-effect","non-scaling-stroke")
+    .attr("style","fill:none;stroke:var(--state);stroke-width:.7px");
+  gDots=gRoot.append("g");
+
+  zoom=d3.behavior.zoom().scaleExtent([1,14]).on("zoom",()=>{
+    k=d3.event.scale; gRoot.attr("transform",`translate(${d3.event.translate})scale(${k})`); sizeDots();
+  });
+  svg.call(zoom);
+  const zoomBy=f=>{
+    const c=[W/2,H/2], t=zoom.translate(), s0=zoom.scale(), s1=Math.max(1,Math.min(14,s0*f));
+    zoom.scale(s1).translate([c[0]-(c[0]-t[0])*s1/s0, c[1]-(c[1]-t[1])*s1/s0]); zoom.event(svg);
+  };
+  document.getElementById("zin").addEventListener("click",()=>zoomBy(1.6));
+  document.getElementById("zout").addEventListener("click",()=>zoomBy(1/1.6));
+  document.getElementById("zreset").addEventListener("click",()=>{ zoom.scale(1).translate([0,0]); zoom.event(svg); });
+  return true;
+}
+
+function sizeDots(){
+  if(!gDots) return;
+  gDots.selectAll("circle").attr("r",7/Math.sqrt(k)).style("stroke-width",d=>((d.out==="Fatal"?3:d.pr==="rough"?2:1.5)/Math.sqrt(k))+"px");
+}
+
+function focusOn(x){
+  if(!zoom) return;
+  const p=projection([x.pln,x.pla]), s1=6;
+  zoom.scale(s1).translate([W/2-p[0]*s1, H/2-p[1]*s1]); zoom.event(svg);
+  showInfo(x);
+}
+
+function renderMap(rows){
+  if(!gDots) return;
+  const data=rows.filter(x=>x.la!=null);
+  const sel=gDots.selectAll("circle").data(data,d=>d.id);
+  sel.exit().remove();
+  sel.enter().append("circle").attr("class","dot").attr("tabindex","0")
+    .attr("cx",d=>projection([d.pln,d.pla])[0]).attr("cy",d=>projection([d.pln,d.pla])[1])
+    .attr("style",d=>{
+      const rough=d.pr==="rough", stroke=d.out==="Fatal"?"--fatal":(rough?spVar(d.sp):"--surface");
+      return `fill:var(${spVar(d.sp)});fill-opacity:${rough?.35:.9};stroke:var(${stroke});${rough?"stroke-dasharray:3 2;":""}`;
+    })
+    .on("click",d=>{ d3.event.stopPropagation(); showInfo(d); })
+    .on("keydown",d=>{ if(d3.event.key==="Enter"||d3.event.key===" "){ d3.event.preventDefault(); showInfo(d);} })
+    .append("title").text(d=>`${d.d}: ${d.place}`);
+  // Fatal dots on top
+  gDots.selectAll("circle").sort((a,b)=>(a.out==="Fatal")-(b.out==="Fatal"));
+  sizeDots();
+}
+
+// ---------- List ----------
+function renderList(rows){
+  document.getElementById("count").textContent=`Showing ${rows.length} of ${DATA.length} incidents (${rows.filter(x=>x.la!=null).length} on the map).`;
+  const list=document.getElementById("list"); list.replaceChildren();
+  if(!rows.length){ list.append(el("p","count","No incidents match these filters. Clear a filter to see more.")); return; }
+  rows.forEach(x=>{
+    const card=el("article","item "+(x.sp==="Not stated"?"":x.sp)); card.id=x.id;
+    card.append(el("h3","",`${x.d}: ${x.place}`));
+    const meta=el("div","meta");
+    meta.append(el("span","pill",spName(x)));
+    meta.append(el("span","pill "+(x.out==="Fatal"?"fatal":x.out==="Injured"?"inj":""),x.out));
+    meta.append(el("span","pill",x.c==="Not stated"?"Country not stated":x.c));
+    meta.append(el("span","pill",PREC[x.pr]));
+    if(x.spray) meta.append(el("span","pill","Bear spray mentioned"));
+    if(x.gun) meta.append(el("span","pill","Firearm mentioned"));
+    card.append(meta, el("p","",x.txt));
+    if(x.flag) card.append(el("div","flag","Note: "+x.flag));
+    if(x.lc) card.append(el("div","flag","Link check: "+x.lc));
+    const u=x.url?safeUrl(x.url):"";
+    if(u){ const a=el("a","",u); a.href=u; a.target="_blank"; a.rel="noopener noreferrer"; card.append(a); }
+    if(x.la!=null && zoom){
+      const b=el("button","linkbtn","Show on map"); b.type="button"; b.style.display="block"; b.style.marginTop="6px";
+      b.addEventListener("click",()=>{ document.querySelector(".mapbox").scrollIntoView({behavior:"smooth"}); focusOn(x); });
+      card.append(b);
+    }
+    list.append(card);
+  });
+}
+
+function update(){ const rows=DATA.filter(matches); renderMap(rows); renderList(rows); document.getElementById("info").classList.remove("show"); }
+
+document.getElementById("fSp").addEventListener("change",e=>{state.sp=e.target.value; update();});
+document.getElementById("fOut").addEventListener("change",e=>{state.out=e.target.value; update();});
+document.getElementById("fCountry").addEventListener("change",e=>{state.c=e.target.value; update();});
+document.getElementById("fMonth").addEventListener("change",e=>{state.month=parseInt(e.target.value,10)||0; update();});
+document.getElementById("fSpray").addEventListener("change",e=>{state.spray=e.target.checked; update();});
+document.getElementById("fGun").addEventListener("change",e=>{state.gun=e.target.checked; update();});
+document.getElementById("fQ").addEventListener("input",e=>{state.q=String(e.target.value).slice(0,80).trim().toLowerCase(); update();});
+document.getElementById("reset").addEventListener("click",()=>{
+  Object.assign(state,{sp:"",out:"",c:"",month:0,spray:false,gun:false,q:""});
+  ["fSp","fOut","fCountry"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("fMonth").value="0";
+  ["fSpray","fGun"].forEach(id=>document.getElementById(id).checked=false);
+  document.getElementById("fQ").value=""; update();
+});
+
+try{ initMap(); }catch(e){ warn("The map couldn't be drawn in this view. Download this file and open it in a web browser. The full list below still works."); console.error(e); }
+renderKey(); update();
+</script>
+</body>
+</html>
